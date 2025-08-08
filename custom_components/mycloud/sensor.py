@@ -32,9 +32,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
         try:
             data = {
                 "system_info": await client.system_info(),
-                "system_status": await client.system_status(),
                 "device_info": await client.device_info(),
-                "system_version": await client.system_version(),
             }
             return data
         except Exception as err:
@@ -52,7 +50,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
     await coordinator.async_refresh()
 
     device_info_data = coordinator.data["device_info"]
-    system_version_data = coordinator.data["system_version"]
     serial_number = device_info_data["serial_number"]
     device_name = device_info_data["name"]
 
@@ -60,13 +57,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
         identifiers={(DOMAIN, serial_number)},
         name=device_name,
         manufacturer="Western Digital",
-        model=device_info_data["description"],
-        sw_version=system_version_data["firmware"]
+        model=device_info_data["description"]
     )
 
     sensors_to_add = [
-        MyCloudCPUSensor(coordinator, device, serial_number, device_name),
-        MyCloudMemorySensor(coordinator, device, serial_number, device_name),
         MyCloudTotalStorageSensor(coordinator, device, serial_number, device_name),
         MyCloudUsedStorageSensor(coordinator, device, serial_number, device_name),
         MyCloudUnusedStorageSensor(coordinator, device, serial_number, device_name)
@@ -83,7 +77,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
             name=disk_name,
             manufacturer="Western Digital",
             model=disk_model,
-            sw_version=system_version_data["firmware"],
             hw_version=disk["rev"],
             via_device=(DOMAIN, serial_number)
         )
@@ -141,45 +134,6 @@ class MyCloudSensorBase(CoordinatorEntity, SensorEntity):
 
 # -- System --
 
-class MyCloudCPUSensor(MyCloudSensorBase):
-    def __init__(self, coordinator, device_info, serial_number, device_name):
-        super().__init__(
-            coordinator,
-            device_info,
-            serial_number,
-            device_name,
-            "cpu_usage",
-            "CPU Usage",
-            unit="%"
-        )
-        self._attr_icon = "mdi:cpu-64-bit"
-
-    @property
-    def state(self):
-        return self.coordinator.data["system_status"]["cpu"]
-
-class MyCloudMemorySensor(MyCloudSensorBase):
-    def __init__(self, coordinator, device_info, serial_number, device_name):
-        super().__init__(
-            coordinator,
-            device_info,
-            serial_number,
-            device_name,
-            "memory_usage",
-            "Memory Usage",
-            unit="%"
-        )
-        self._attr_icon = "mdi:memory"
-
-    @property
-    def state(self):
-        mem_data = self.coordinator.data["system_status"]["memory"]
-        total = mem_data["total"]
-        used = total - mem_data["unused"]
-        if total > 0:
-            return round((used / total) * 100, 2)
-        return None
-    
 class MyCloudTotalStorageSensor(CoordinatorEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.VOLUME_STORAGE
     _attr_state_class = SensorStateClass.MEASUREMENT
