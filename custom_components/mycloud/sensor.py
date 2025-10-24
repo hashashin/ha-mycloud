@@ -23,7 +23,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
     username = config_entry.data["Username"]
     password = config_entry.data["Password"]
 
-    client = nas_client(username, password, host)
+    client = nas_client(username, password, host, 2)
     
     await client.__aenter__()
 
